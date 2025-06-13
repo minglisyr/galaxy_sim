@@ -18,7 +18,6 @@ import {CopyShader} from "three/examples/jsm/shaders/CopyShader";
 let container, stats;
 let camera, scene, renderer, geometry, composer;
 
-
 let gpuCompute;
 let velocityVariable;
 let positionVariable;
@@ -28,10 +27,8 @@ let effectController;
 let particles;
 let material;
 let controls;
-let luminosity;
 let paused = false;
 // motion blur
-let renderTargetParameters;
 let savePass;
 let blendPass;
 /*--------------------------INITIALISATION-----------------------------------------------*/
@@ -40,23 +37,18 @@ const interactionRate = 1.0;
 const timeStep = 0.001;
 const blackHoleForce = 100.0;
 const constLuminosity = 1.0;
-const numberOfStars = 1000;
+const numberOfStars = 3000;
 const radius = 100;
 const height = 5;
-const middleVelocity = 2;
+const centerVelocity = 2;
 const velocity = 15;
-renderTargetParameters = {
-    minFilter: THREE.LinearFilter,
-    magFilter: THREE.LinearFilter,
-    stencilBuffer: false
-};
+
 
 // save pass
 savePass = new SavePass(
     new THREE.WebGLRenderTarget(
         window.innerWidth,
         window.innerHeight,
-        renderTargetParameters
     )
 );
 
@@ -70,12 +62,6 @@ const outputPass = new ShaderPass(CopyShader);
 outputPass.renderToScreen = true;
 
 effectController = {
-    // Can be changed dynamically
-    gravity: gravity,
-    interactionRate: interactionRate,
-    timeStep: timeStep,
-    blackHoleForce: blackHoleForce,
-    luminosity: constLuminosity,
     maxAccelerationColor: 50.0,
     maxAccelerationColorPercent: 5,
 
@@ -83,7 +69,7 @@ effectController = {
     numberOfStars: numberOfStars,
     radius: radius,
     height: height,
-    middleVelocity: middleVelocity,
+    centerVelocity: centerVelocity,
     velocity: velocity,
 };
 
@@ -114,19 +100,18 @@ function init() {
 
     // Show fps, ping, etc
     stats = new Stats();
-    container.appendChild( stats.dom );
+    container.appendChild(stats.dom);
 
-    window.addEventListener( 'resize', onWindowResize );
+    window.addEventListener('resize', onWindowResize);
 
     initGUI();
     initParticles();
-    dynamicValuesChanger();
-    const renderScene = new RenderPass( scene, camera );
+    const renderScene = new RenderPass(scene, camera);
 
 
 
-    composer = new EffectComposer( renderer );
-    composer.addPass( renderScene );
+    composer = new EffectComposer(renderer);
+    composer.addPass(renderScene);
     composer.addPass(blendPass);
     composer.addPass(savePass);
     composer.addPass(outputPass);
@@ -151,12 +136,12 @@ function initComputeRenderer() {
     gpuCompute.setVariableDependencies( positionVariable, [ positionVariable, velocityVariable ] );
 
     velocityUniforms = velocityVariable.material.uniforms;
-    velocityUniforms[ 'gravity' ] = { value: 0.0 };
-    velocityUniforms[ 'interactionRate' ] = { value: 0.0 };
-    velocityUniforms[ 'timeStep' ] = { value: 0.0 };
-    velocityUniforms[ 'uMaxAccelerationColor' ] = { value: 0.0 };
-    velocityUniforms[ 'blackHoleForce' ] = { value: 0.0 };
-    velocityUniforms[ 'luminosity' ] = { value: 0.0 };
+    velocityUniforms[ 'gravity' ] = { value:  gravity };
+    velocityUniforms[ 'interactionRate' ] = { value: interactionRate };
+    velocityUniforms[ 'timeStep' ] = { value: timeStep };
+    velocityUniforms[ 'uMaxAccelerationColor' ] = { value: effectController.maxAccelerationColor };
+    velocityUniforms[ 'blackHoleForce' ] = { value: blackHoleForce };
+    velocityUniforms[ 'luminosity' ] = { value: constLuminosity };
 
     const error = gpuCompute.init();
 
@@ -195,7 +180,7 @@ function initParticles() {
         'cameraConstant': { value: getCameraConstant( camera ) },
         'particlesCount': { value: PARTICLES },
         'uMaxAccelerationColor': { value: effectController.maxAccelerationColor },
-        'uLuminosity' : { value: luminosity},
+        'uLuminosity' : { value: constLuminosity},
     };
 
     // THREE.ShaderMaterial
@@ -228,7 +213,7 @@ function fillTextures( texturePosition, textureVelocity ) {
 
     const radius = effectController.radius;
     const height = effectController.height;
-    const middleVelocity = effectController.middleVelocity;
+    const centerVelocity = effectController.centerVelocity;
     const maxVel = effectController.velocity;
 
     for ( let k = 0, kl = posArray.length; k < kl; k += 4 ) {
@@ -254,7 +239,7 @@ function fillTextures( texturePosition, textureVelocity ) {
             } while ( rr > 1 );
             rr = Math.sqrt( rr );
 
-            const rExp = radius * Math.pow( rr, middleVelocity );
+            const rExp = radius * Math.pow( rr, centerVelocity );
 
             // Velocity
             const vel = maxVel * Math.pow( rr, 0.2 );
@@ -307,43 +292,18 @@ function onWindowResize() {
     particleUniforms[ 'cameraConstant' ].value = getCameraConstant( camera );
 }
 
-function dynamicValuesChanger() {
-    velocityUniforms[ 'gravity' ].value = effectController.gravity;
-    velocityUniforms[ 'interactionRate' ].value = effectController.interactionRate;
-    velocityUniforms[ 'timeStep' ].value = effectController.timeStep;
-    console.log(effectController.maxAccelerationColor);
-    velocityUniforms[ 'uMaxAccelerationColor' ].value = effectController.maxAccelerationColor;
-    velocityUniforms[ 'blackHoleForce' ].value = effectController.blackHoleForce;
-    velocityUniforms[ 'luminosity' ].value = effectController.luminosity;
-}
-
 /**
  * Init the menu
  */
 function initGUI() {
-
     const gui = new GUI( { width: 350 } );
 
-    const folder1 = gui.addFolder( 'Dynamic Parameters' );
-
-    const folderGraphicSettings = gui.addFolder( 'Graphics settings' );
-
-    const folder2 = gui.addFolder( 'Static parameters (need to restart the simulation)' );
-
-    folder1.add( effectController, 'gravity', 0.0, 1000.0, 0.05 ).onChange( dynamicValuesChanger ).name("Gravitational force");
-    folder1.add( effectController, 'interactionRate', 0.0, 1.0, 0.001 ).onChange( dynamicValuesChanger ).name("Interaction rate (%)");
-    folder1.add( effectController, 'timeStep', 0.0, 0.01, 0.0001 ).onChange( dynamicValuesChanger ).name("Time step");
-
-    folderGraphicSettings.add( effectController, 'maxAccelerationColorPercent', 0.01, 100, 0.01 ).onChange(  function ( value ) {
-        effectController.maxAccelerationColor = value * 10;
-        dynamicValuesChanger();
-    }  ).name("Colors mix (%)");
-
-    folder2.add( effectController, 'numberOfStars', 2.0, 1000000.0, 1.0 ).name("Number of stars");
-    folder2.add( effectController, 'radius', 1.0, 1000.0, 1.0 ).name("Galaxy diameter");
-    folder2.add( effectController, 'height', 0.0, 50.0, 0.01 ).name("Galaxy height");
-    folder2.add( effectController, 'middleVelocity', 0.0, 20.0, 0.001 ).name("Center rotation speed");
-    folder2.add( effectController, 'velocity', 0.0, 150.0, 0.1 ).name("Initial rotation speed");
+    const folder1 = gui.addFolder( 'Static parameters (need to restart the simulation)' );
+    folder1.add( effectController, 'numberOfStars', 2.0, 1000000.0, 1.0 ).name("Number of stars");
+    folder1.add( effectController, 'radius', 1.0, 1000.0, 1.0 ).name("Galaxy diameter");
+    folder1.add( effectController, 'height', 0.0, 50.0, 0.01 ).name("Galaxy height");
+    folder1.add( effectController, 'centerVelocity', 0.0, 20.0, 0.001 ).name("Center rotation speed");
+    folder1.add( effectController, 'velocity', 0.0, 150.0, 0.1 ).name("Initial rotation speed");
 
     const buttonRestart = {
         restartSimulation: function () {
@@ -356,9 +316,9 @@ function initGUI() {
         }
     };
 
-    folder2.add( buttonRestart, 'restartSimulation' ).name("Restart the simulation");
+    folder1.add( buttonRestart, 'restartSimulation' ).name("Restart the simulation");
 
-    let buttonPauseController = folder2.add( buttonPause, 'pauseSimulation' ).name("Pause");
+    let buttonPauseController = folder1.add( buttonPause, 'pauseSimulation' ).name("Pause");
     buttonPauseController.onChange(function(){
         paused = !paused;
         if(paused){
@@ -370,32 +330,10 @@ function initGUI() {
     });
 
     folder1.open();
-    folder2.open();
-    folderGraphicSettings.open();
-
 }
 
 function getCameraConstant( camera ) {
     return window.innerHeight / ( Math.tan( THREE.MathUtils.DEG2RAD * 0.5 * camera.fov ) / camera.zoom );
-}
-
-/***Switch the current simulation***/
-function switchSimulation(){
-    paused = false;
-    // Normal mode (small configuration)
-    scene.remove(particles);
-
-    effectController = {
-    };
-    material.dispose();
-    geometry.dispose();
-    document.getElementsByClassName('dg ac').item(0).removeChild(document.getElementsByClassName('dg main a').item(0));
-
-    document.body.removeChild(document.querySelector('canvas').parentNode);
-
-    PARTICLES = effectController.numberOfStars;
-
-    init();
 }
 
 function animate() {
@@ -417,7 +355,7 @@ function render() {
     composer.removePass(savePass);
     composer.removePass(outputPass);
 
-    material.uniforms.uLuminosity.value = effectController.luminosity;
+    material.uniforms.uLuminosity.value = constLuminosity;
     composer.render(scene, camera);
 
 }
