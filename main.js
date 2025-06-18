@@ -234,7 +234,7 @@ function initGUI() {
     folder1.add( effectController, 'ringRatio', 0.0, 1.0, 0.01 ).name("Galaxy ring ratio");
     folder1.add( effectController, 'height', 0.0, 50.0, 0.01 ).name("Galaxy height");
     folder1.add( effectController, 'centerVelocity', 0.0, 20.0, 0.001 ).name("Center rotation speed");
-    folder1.add( effectController, 'velocity', 0.0, 150.0, 0.1 ).name("Initial rotation speed");
+    folder1.add( effectController, 'velocity', -150.0, 150.0, 0.1 ).name("Initial rotation speed");
 
     const buttonRestart = {
         restartSimulation: function () {
