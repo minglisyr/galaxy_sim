@@ -30,6 +30,7 @@ const blackHoleForce = 100.0;
 const constLuminosity = 1.0;
 const numberOfStars = 20000;
 const radius = 500;
+const ringRatio = 0.0;
 const height = 5;
 const centerVelocity = 1;
 const velocity = 5;
@@ -41,6 +42,7 @@ effectController = {
     blackHoleForce: blackHoleForce,
     numberOfStars: numberOfStars,
     radius: radius,
+    ringRatio: ringRatio,
     height: height,
     centerVelocity: centerVelocity,
     velocity: velocity,
@@ -72,6 +74,8 @@ function init() {
     // Show fps, ping, etc
     stats = new Stats();
     container.appendChild(stats.dom);
+    stats.showPanel(0); // 0: fps, 1: ms, 2: mb
+
 
     window.addEventListener('resize', onWindowResize);
 
@@ -159,6 +163,7 @@ function fillTextures( texturePosition, textureVelocity ) {
     const velArray = textureVelocity.image.data;
 
     const radius = effectController.radius;
+    const ringRatio = effectController.ringRatio;
     const height = effectController.height;
     const centerVelocity = effectController.centerVelocity;
     const maxVel = effectController.velocity;
@@ -175,7 +180,7 @@ function fillTextures( texturePosition, textureVelocity ) {
                 x = ( Math.random() * 2 - 1 );
                 z = ( Math.random() * 2 - 1 );
                 rr = x * x + z * z;
-            } while ( rr > 1 );
+            } while ( rr > 1 || rr < ringRatio);
             rr = Math.sqrt( rr );
 
             const rExp = radius * Math.pow( rr, centerVelocity );
@@ -226,6 +231,7 @@ function initGUI() {
     folder1.add( effectController, 'blackHoleForce', 0.0, 10000.0, 1.0 ).name("Black hole force");
     folder1.add( effectController, 'numberOfStars', 2.0, 1000000.0, 1.0 ).name("Number of stars");
     folder1.add( effectController, 'radius', 1.0, 1000.0, 1.0 ).name("Galaxy diameter");
+    folder1.add( effectController, 'ringRatio', 0.0, 1.0, 0.01 ).name("Galaxy ring ratio");
     folder1.add( effectController, 'height', 0.0, 50.0, 0.01 ).name("Galaxy height");
     folder1.add( effectController, 'centerVelocity', 0.0, 20.0, 0.001 ).name("Center rotation speed");
     folder1.add( effectController, 'velocity', 0.0, 150.0, 0.1 ).name("Initial rotation speed");
